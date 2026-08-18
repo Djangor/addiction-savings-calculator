@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Savings">
+<title>Savings Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --accent: #22c55e;
+    --accent-dim: #16a34a;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --danger: #ef4444;
+    --danger-dim: #b91c1c;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .screen { display: none; flex-direction: column; flex: 1; padding: 20px; }
+  .screen.active { display: flex; }
+
+  /* ---- Main screen ---- */
+  .topbar {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    padding: 8px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 28px;
+  }
+  .days-count {
+    font-size: 88px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .days-label {
+    color: var(--muted);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: 4px;
+  }
+  .savings-amount {
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .savings-label {
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+  .goal-card {
+    width: 100%;
+    max-width: 340px;
+    background: var(--card);
+    border-radius: 16px;
+    padding: 18px 20px;
+  }
+  .goal-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .goal-top strong { color: var(--text); }
+  .progress-track {
+    background: #334155;
+    border-radius: 999px;
+    height: 12px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .goal-pct {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .fail-btn-wrap { padding: 8px 4px 4px; }
+  .fail-btn {
+    width: 100%;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    padding: 18px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+  }
+  .fail-btn:active { background: var(--danger-dim); }
+
+  /* ---- Settings screen ---- */
+  .settings-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+    margin-bottom: 24px;
+  }
+  .settings-header h1 { font-size: 20px; margin: 0; }
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid #334155;
+    color: var(--text);
+    font-size: 18px;
+    padding: 14px 16px;
+    border-radius: 12px;
+  }
+  .field input:focus { outline: none; border-color: var(--accent); }
+  .field-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .save-btn {
+    margin-top: 8px;
+    width: 100%;
+    background: var(--accent);
+    color: #06210f;
+    border: none;
+    border-radius: 14px;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .save-btn:active { background: var(--accent-dim); }
+  .danger-zone {
+    margin-top: auto;
+    padding-top: 24px;
+  }
+  .reset-btn {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* ---- Confirm modal ---- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 10;
+  }
+  .modal-backdrop.active { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 24px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+  }
+  .modal p { color: var(--muted); font-size: 15px; margin: 8px 0 20px; }
+  .modal h2 { margin: 0; font-size: 19px; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions button {
+    flex: 1;
+    padding: 13px;
+    border-radius: 12px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .modal-cancel { background: #334155; color: var(--text); }
+  .modal-confirm { background: var(--danger); color: white; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Main screen -->
+  <div id="main-screen" class="screen active">
+    <div class="topbar">
+      <button class="icon-btn" id="open-settings" aria-label="Settings">⚙</button>
+    </div>
+    <div class="hero">
+      <div>
+        <div class="days-count" id="days-count">0</div>
+        <div class="days-label" id="days-label">days clean</div>
+      </div>
+      <div>
+        <div class="savings-amount" id="savings-amount">$0</div>
+        <div class="savings-label">saved so far</div>
+      </div>
+      <div class="goal-card">
+        <div class="goal-top">
+          <span>Goal: <strong id="goal-name">—</strong></span>
+          <strong id="goal-target">$0</strong>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+        <div class="goal-pct" id="goal-pct">0%</div>
+      </div>
+    </div>
+    <div class="fail-btn-wrap">
+      <button class="fail-btn" id="fail-btn">I FAILED</button>
+    </div>
+  </div>
+
+  <!-- Settings screen -->
+  <div id="settings-screen" class="screen">
+    <div class="settings-header">
+      <button class="icon-btn" id="close-settings" aria-label="Back">←</button>
+      <h1>Settings</h1>
+    </div>
+
+    <div class="field">
+      <label for="input-goal-name">Goal / purchase</label>
+      <input id="input-goal-name" type="text" placeholder="e.g. New laptop" maxlength="40">
+    </div>
+
+    <div class="field">
+      <label for="input-target">Target amount ($)</label>
+      <input id="input-target" type="number" inputmode="decimal" min="0" step="0.01" placeholder="1000">
+    </div>
+
+    <div class="field">
+      <label for="input-daily">Daily spending on it ($)</label>
+      <input id="input-daily" type="number" inputmode="decimal" min="0" step="0.01" placeholder="15">
+      <div class="field-hint">Used to calculate how much you've saved per day since quitting.</div>
+    </div>
+
+    <button class="save-btn" id="save-settings">Save</button>
+
+    <div class="danger-zone">
+      <button class="reset-btn" id="settings-reset-btn">Reset counter now</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Confirm modal for "I failed" -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <h2>Reset your streak?</h2>
+    <p>This starts your day count back at 0. Be honest with yourself — you've got this.</p>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="modal-cancel">Cancel</button>
+      <button class="modal-confirm" id="modal-confirm">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'addictionSavingsTracker';
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return Object.assign(defaultState(), JSON.parse(raw));
+    } catch (e) {}
+    return defaultState();
+  }
+
+  function defaultState() {
+    return {
+      quitDate: new Date().toISOString(),
+      goalName: '',
+      target: 0,
+      daily: 0
+    };
+  }
+
+  function saveState(state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  let state = loadState();
+
+  const daysCountEl = document.getElementById('days-count');
+  const daysLabelEl = document.getElementById('days-label');
+  const savingsAmountEl = document.getElementById('savings-amount');
+  const goalNameEl = document.getElementById('goal-name');
+  const goalTargetEl = document.getElementById('goal-target');
+  const progressFillEl = document.getElementById('progress-fill');
+  const goalPctEl = document.getElementById('goal-pct');
+
+  const mainScreen = document.getElementById('main-screen');
+  const settingsScreen = document.getElementById('settings-screen');
+
+  const inputGoalName = document.getElementById('input-goal-name');
+  const inputTarget = document.getElementById('input-target');
+  const inputDaily = document.getElementById('input-daily');
+
+  const modalBackdrop = document.getElementById('modal-backdrop');
+
+  function currency(n) {
+    return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function daysSince(dateIso) {
+    const start = new Date(dateIso);
+    start.setHours(0, 0, 0, 0);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diff = Math.round((now - start) / 86400000);
+    return Math.max(0, diff);
+  }
+
+  function render() {
+    const days = daysSince(state.quitDate);
+    const savings = days * (Number(state.daily) || 0);
+    const target = Number(state.target) || 0;
+    const pct = target > 0 ? Math.min(100, (savings / target) * 100) : 0;
+
+    daysCountEl.textContent = days;
+    daysLabelEl.textContent = days === 1 ? 'day clean' : 'days clean';
+    savingsAmountEl.textContent = currency(savings);
+    goalNameEl.textContent = state.goalName ? state.goalName : 'Not set';
+    goalTargetEl.textContent = target > 0 ? currency(target) : '$0';
+    progressFillEl.style.width = pct + '%';
+    goalPctEl.textContent = Math.floor(pct) + '%';
+  }
+
+  function showSettings() {
+    inputGoalName.value = state.goalName || '';
+    inputTarget.value = state.target || '';
+    inputDaily.value = state.daily || '';
+    mainScreen.classList.remove('active');
+    settingsScreen.classList.add('active');
+  }
+
+  function showMain() {
+    settingsScreen.classList.remove('active');
+    mainScreen.classList.add('active');
+  }
+
+  document.getElementById('open-settings').addEventListener('click', showSettings);
+  document.getElementById('close-settings').addEventListener('click', showMain);
+
+  document.getElementById('save-settings').addEventListener('click', function () {
+    state.goalName = inputGoalName.value.trim();
+    state.target = parseFloat(inputTarget.value) || 0;
+    state.daily = parseFloat(inputDaily.value) || 0;
+    saveState(state);
+    render();
+    showMain();
+  });
+
+  document.getElementById('settings-reset-btn').addEventListener('click', function () {
+    state.quitDate = new Date().toISOString();
+    saveState(state);
+    render();
+    showMain();
+  });
+
+  document.getElementById('fail-btn').addEventListener('click', function () {
+    modalBackdrop.classList.add('active');
+  });
+
+  document.getElementById('modal-cancel').addEventListener('click', function () {
+    modalBackdrop.classList.remove('active');
+  });
+
+  document.getElementById('modal-confirm').addEventListener('click', function () {
+    state.quitDate = new Date().toISOString();
+    saveState(state);
+    render();
+    modalBackdrop.classList.remove('active');
+  });
+
+  // First run: if no target set yet, jump straight to settings
+  if (!localStorage.getItem(STORAGE_KEY)) {
+    saveState(state);
+    render();
+    showSettings();
+  } else {
+    render();
+  }
+
+  // Keep the day counter fresh if the app stays open across midnight
+  setInterval(render, 60000);
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
