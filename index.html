@@ -124,7 +124,30 @@
     color: var(--muted);
     text-align: right;
   }
-  .fail-btn-wrap { padding: 8px 4px 4px; }
+  .milestone-card {
+    width: 100%;
+    max-width: 340px;
+    margin: 18px auto 0;
+    background: var(--card);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+  }
+  .milestone-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+  .milestone-body { min-width: 0; }
+  .milestone-title { font-weight: 700; font-size: 14px; }
+  .milestone-desc { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .milestone-next {
+    max-width: 340px;
+    margin: 8px auto 0;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .fail-btn-wrap { padding: 16px 4px 4px; }
   .fail-btn {
     width: 100%;
     background: var(--danger);
@@ -247,13 +270,13 @@
         <div class="days-label" id="days-label">days clean</div>
       </div>
       <div>
-        <div class="savings-amount" id="savings-amount">$0</div>
+        <div class="savings-amount" id="savings-amount">CHF 0.00</div>
         <div class="savings-label">saved so far</div>
       </div>
       <div class="goal-card">
         <div class="goal-top">
           <span>Goal: <strong id="goal-name">—</strong></span>
-          <strong id="goal-target">$0</strong>
+          <strong id="goal-target">CHF 0.00</strong>
         </div>
         <div class="progress-track">
           <div class="progress-fill" id="progress-fill" style="width:0%"></div>
@@ -261,6 +284,14 @@
         <div class="goal-pct" id="goal-pct">0%</div>
       </div>
     </div>
+    <div class="milestone-card">
+      <div class="milestone-icon" id="milestone-icon">💛</div>
+      <div class="milestone-body">
+        <div class="milestone-title" id="milestone-title">You quit</div>
+        <div class="milestone-desc" id="milestone-desc">The hardest part is behind you.</div>
+      </div>
+    </div>
+    <div class="milestone-next" id="milestone-next"></div>
     <div class="fail-btn-wrap">
       <button class="fail-btn" id="fail-btn">I FAILED</button>
     </div>
@@ -279,12 +310,12 @@
     </div>
 
     <div class="field">
-      <label for="input-target">Target amount ($)</label>
+      <label for="input-target">Target amount (CHF)</label>
       <input id="input-target" type="number" inputmode="decimal" min="0" step="0.01" placeholder="1000">
     </div>
 
     <div class="field">
-      <label for="input-daily">Daily spending on it ($)</label>
+      <label for="input-daily">Daily spending on it (CHF)</label>
       <input id="input-daily" type="number" inputmode="decimal" min="0" step="0.01" placeholder="15">
       <div class="field-hint">Used to calculate how much you've saved per day since quitting.</div>
     </div>
@@ -344,6 +375,10 @@
   const goalTargetEl = document.getElementById('goal-target');
   const progressFillEl = document.getElementById('progress-fill');
   const goalPctEl = document.getElementById('goal-pct');
+  const milestoneIconEl = document.getElementById('milestone-icon');
+  const milestoneTitleEl = document.getElementById('milestone-title');
+  const milestoneDescEl = document.getElementById('milestone-desc');
+  const milestoneNextEl = document.getElementById('milestone-next');
 
   const mainScreen = document.getElementById('main-screen');
   const settingsScreen = document.getElementById('settings-screen');
@@ -354,8 +389,39 @@
 
   const modalBackdrop = document.getElementById('modal-backdrop');
 
+  const chfFormatter = new Intl.NumberFormat('de-CH', {
+    style: 'currency',
+    currency: 'CHF',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
   function currency(n) {
-    return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return chfFormatter.format(n);
+  }
+
+  const MILESTONES = [
+    { days: 0, icon: '💛', title: 'You quit', desc: 'The hardest part is behind you — cravings will fade from here.' },
+    { days: 1, icon: '❤️', title: 'Heart rate normalizing', desc: 'Your pulse and blood pressure are dropping back to normal.' },
+    { days: 2, icon: '👃', title: 'Taste & smell sharpening', desc: 'Damaged nerve endings are starting to regrow.' },
+    { days: 3, icon: '🫁', title: 'Breathing easier', desc: 'Nicotine is fully out of your system and your airways are relaxing.' },
+    { days: 7, icon: '💪', title: 'One week strong', desc: 'Circulation is improving and energy levels are climbing.' },
+    { days: 14, icon: '🏃', title: 'Lung function up', desc: 'Coughing and shortness of breath are noticeably decreasing.' },
+    { days: 30, icon: '🌬️', title: 'One month clean', desc: 'Lung cilia are regrowing, cutting your infection risk.' },
+    { days: 90, icon: '🔥', title: 'Cravings fading fast', desc: 'Circulation and lung function have improved significantly.' },
+    { days: 180, icon: '⚡', title: 'Half a year', desc: 'Better stamina and fewer respiratory symptoms — real endurance gains.' },
+    { days: 365, icon: '🏆', title: 'One year clean', desc: 'Your risk of heart disease has dropped sharply.' },
+    { days: 1825, icon: '🌟', title: 'Five years clean', desc: 'Long-term health risks keep approaching a non-user’s baseline.' }
+  ];
+
+  function getMilestoneStatus(days) {
+    let current = MILESTONES[0];
+    let next = null;
+    for (let i = 0; i < MILESTONES.length; i++) {
+      if (MILESTONES[i].days <= days) current = MILESTONES[i];
+      else { next = MILESTONES[i]; break; }
+    }
+    return { current, next };
   }
 
   function daysSince(dateIso) {
@@ -377,9 +443,20 @@
     daysLabelEl.textContent = days === 1 ? 'day clean' : 'days clean';
     savingsAmountEl.textContent = currency(savings);
     goalNameEl.textContent = state.goalName ? state.goalName : 'Not set';
-    goalTargetEl.textContent = target > 0 ? currency(target) : '$0';
+    goalTargetEl.textContent = currency(target);
     progressFillEl.style.width = pct + '%';
     goalPctEl.textContent = Math.floor(pct) + '%';
+
+    const { current, next } = getMilestoneStatus(days);
+    milestoneIconEl.textContent = current.icon;
+    milestoneTitleEl.textContent = current.title;
+    milestoneDescEl.textContent = current.desc;
+    if (next) {
+      const daysLeft = next.days - days;
+      milestoneNextEl.textContent = 'Next: ' + next.title + ' in ' + daysLeft + (daysLeft === 1 ? ' day' : ' days');
+    } else {
+      milestoneNextEl.textContent = 'You’ve hit every milestone we track. Incredible work.';
+    }
   }
 
   function showSettings() {
